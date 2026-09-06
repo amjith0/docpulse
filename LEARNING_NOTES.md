@@ -36,3 +36,10 @@ Used ollama Python library to send prompts to the local model
 Built a prompt combining retrieved chunks (context) + question + instruction to only answer from context
 Confirmed grounding: in-scope question answered accurately from PDF content
 Confirmed hallucination control: out-of-scope question correctly triggered "I don't know" instead of the model using its own knowledge
+
+Phase 6 Notes — Streamlit UI + Deployment
+
+- Restructured the pipeline into a Streamlit web app with file upload and text input
+- Added error handling for pages with no extractable text, and for Ollama being unreachable
+- Set up Git and GitHub: .gitignore, README, organized learning_steps/ folder
+- Deployment consideration: Ollama can't run on Streamlit Community Cloud's servers, so public deployment needs either a local-only demo, a fallback message, or swapping to a cloud LLM API for the hosted version
