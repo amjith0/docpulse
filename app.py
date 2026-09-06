@@ -8,13 +8,15 @@ st.title("DocPulse - Smart Study Assistant")
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
 
 if uploaded_file is not None:
-    # Phase 1 - extract text from PDF
+    # Extract text from the uploaded PDF
     reader = PdfReader(uploaded_file)
     text = ""
     for page in reader.pages:
-        text += page.extract_text()
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text
 
-    # Phase 2 - chunk the text
+    # Split text into chunks for embedding
     def chunk_text(text, chunk_size=1000):
         chunks = []
         for i in range(0, len(text), chunk_size):
@@ -23,7 +25,7 @@ if uploaded_file is not None:
 
     chunks = chunk_text(text)
 
-    # Phase 3 - store chunks in a vector database
+    # Store chunks in the vector database
     client = chromadb.Client()
     collection = client.get_or_create_collection("study_docs")
     collection.add(
@@ -36,11 +38,11 @@ if uploaded_file is not None:
     question = st.text_input("Ask a question about your document:")
 
     if question:
-        # Phase 4 - search for relevant chunks
+        # Retrieve the most relevant chunks for the question
         results = collection.query(query_texts=[question], n_results=5)
         retrieved_chunks = results["documents"][0]
 
-        # Phase 5 - build prompt and ask Llama
+        # Build the prompt and query the local LLM
         context = "\n\n".join(retrieved_chunks)
         prompt = f"""Answer the question in detail using only the context below. Explain thoroughly and include relevant examples if present. If the answer isn't in the context, say you don't know.
 
@@ -49,9 +51,11 @@ Context:
 
 Question: {question}"""
 
-        response = ollama.chat(
-            model="llama3.2",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        st.write(response["message"]["content"])
+        try:
+            response = ollama.chat(
+                model="llama3.2",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            st.write(response["message"]["content"])
+        except Exception as e:
+            st.error("Couldn't reach the local Ollama model. Make sure Ollama is running.")
