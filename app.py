@@ -1,7 +1,21 @@
+import os
 import streamlit as st
 from pypdf import PdfReader
 import chromadb
 import ollama
+
+# Load a .env file if one exists (for local Groq testing)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+
+if GROQ_API_KEY:
+    from groq import Groq
+    groq_client = Groq(api_key=GROQ_API_KEY)
 
 st.title("DocPulse - Smart Study Assistant")
 
@@ -42,7 +56,7 @@ if uploaded_file is not None:
         results = collection.query(query_texts=[question], n_results=5)
         retrieved_chunks = results["documents"][0]
 
-        # Build the prompt and query the local LLM
+        # Build the prompt, then query Groq (cloud) or Ollama (local)
         context = "\n\n".join(retrieved_chunks)
         prompt = f"""Answer the question in detail using only the context below. Explain thoroughly and include relevant examples if present. If the answer isn't in the context, say you don't know.
 
@@ -52,10 +66,18 @@ Context:
 Question: {question}"""
 
         try:
-            response = ollama.chat(
-                model="llama3.2",
-                messages=[{"role": "user", "content": prompt}]
-            )
-            st.write(response["message"]["content"])
+            if GROQ_API_KEY:
+                response = groq_client.chat.completions.create(
+                    model="openai/gpt-oss-20b",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                answer = response.choices[0].message.content
+            else:
+                response = ollama.chat(
+                    model="llama3.2",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                answer = response["message"]["content"]
+            st.write(answer)
         except Exception as e:
-            st.error("Couldn't reach the local Ollama model. Make sure Ollama is running.")
+            st.error("Couldn't reach the model. If running locally, make sure Ollama is running. If deployed, check that the Groq API key is set correctly.")
